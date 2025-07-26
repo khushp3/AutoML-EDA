@@ -12,6 +12,11 @@ source venv/bin/activate
 pip install -e .
 ```
 
+## Execute Code
+```
+python examples/run_profile.py
+```
+
 ## Features
 
 - Summary statistics (mean, median, std, etc.)
