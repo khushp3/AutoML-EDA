@@ -1,0 +1,30 @@
+# numerical_describe.py
+import numpy as np
+
+def describe_numerical(series):
+    stats = {
+        "feature_name": series.name,
+        "feature_type": "numerical",
+        "stats": {
+            "mean": series.mean(),
+            "std": series.std(),
+            "min": series.min(),
+            "max": series.max(),
+            "missing": series.isnull().sum(),
+            "missing_percent": series.isnull().mean() * 100,
+            "n_unique": series.nunique(),
+            "skewness": series.skew(),
+            "kurtosis": series.kurt()
+        },
+        "checks": []
+    }
+    
+    # --- Checks ---
+    if stats["stats"]["missing_percent"] > 30:
+        stats["checks"].append("High missing rate")
+    if series.nunique() == 1:
+        stats["checks"].append("Zero variance")
+    if abs(stats["stats"]["skewness"]) > 2:
+        stats["checks"].append("Highly skewed distribution")
+    
+    return stats

@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: automl
+Version: 0.1
+Summary: Automated EDA and ML-ready preprocessing tool
+Author: Khush
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Requires-Dist: seaborn
+Requires-Dist: scikit-learn
+Requires-Dist: jupyter
+Requires-Dist: featuretools
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: summary

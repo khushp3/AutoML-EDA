@@ -1,0 +1,36 @@
+import pandas as pd
+
+
+def categorical_meta(df: pd.DataFrame) -> pd.DataFrame:
+    cat_cols = df.select_dtypes(include=["object", "category"]).columns
+    summaries = []
+
+    for col in cat_cols:
+        series = df[col]
+        non_null_series = series.dropna()
+
+        value_counts = non_null_series.value_counts()
+        proportions = value_counts / len(series)
+
+        if not value_counts.empty:
+            top_category = value_counts.index[0]
+            top_count = value_counts.iloc[0]
+        else:
+            top_category, top_count = None, 0
+
+        rare_categories_pct = (proportions[proportions < 0.01].sum()) * 100
+
+        summaries.append({
+            "column": col,
+            "dtype": series.dtype,
+            "n_unique": series.nunique(dropna=True),
+            "top_category": top_category,
+            "top_freq": top_count,
+            "top_freq_pct": (top_count / len(series) * 100) if len(series) > 0 else 0,
+            "missing_pct": series.isna().mean() * 100,
+            "rare_categories_pct": rare_categories_pct
+        })
+
+    return pd.DataFrame(summaries).sort_values(by="n_unique", ascending=False)
+
+

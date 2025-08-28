@@ -1,0 +1,121 @@
+import os
+import glob
+import pandas as pd
+import numpy as np
+from scipy.stats import skew, kurtosis, entropy
+
+def get_numeric_meta(series: pd.Series):
+    """Extract meta-features for numeric columns"""
+    s = series.dropna()
+    if s.empty:
+        return {
+            "mean": np.nan, "std": np.nan, "skewness": np.nan,
+            "kurtosis": np.nan, "outlier_ratio": np.nan
+        }
+    q1, q3 = np.percentile(s, [25, 75])
+    iqr = q3 - q1
+    outliers = ((s < (q1 - 1.5 * iqr)) | (s > (q3 + 1.5 * iqr))).sum()
+    return {
+        "mean": s.mean(),
+        "std": s.std(),
+        "skewness": skew(s),
+        "kurtosis": kurtosis(s),
+        "outlier_ratio": outliers / len(s)
+    }
+
+def get_categorical_meta(series: pd.Series):
+    """Extract meta-features for categorical columns"""
+    s = series.dropna().astype(str)
+    if s.empty:
+        return {"n_categories": 0, "imbalance_ratio": np.nan, "entropy": np.nan}
+    counts = s.value_counts(normalize=True)
+    imbalance = counts.max()  # proportion of most common class
+    return {
+        "n_categories": s.nunique(),
+        "imbalance_ratio": imbalance,
+        "entropy": entropy(counts)
+    }
+
+def get_datetime_meta(series: pd.Series):
+    """Extract meta-features for datetime columns"""
+    s = pd.to_datetime(series.dropna(), errors="coerce")
+    if s.empty:
+        return {"range_days": np.nan, "freq": np.nan}
+    return {
+        "range_days": (s.max() - s.min()).days,
+        "freq": (s.value_counts().mean())  # rough frequency indicator
+    }
+
+def get_text_meta(series: pd.Series):
+    """Extract meta-features for text columns"""
+    s = series.dropna().astype(str)
+    if s.empty:
+        return {"avg_length": np.nan, "unique_tokens": np.nan, "vocab_size": np.nan}
+    lengths = s.str.len()
+    tokens = s.str.split().sum()
+    return {
+        "avg_length": lengths.mean(),
+        "unique_tokens": len(set(tokens)),
+        "vocab_size": len(pd.Series(tokens).value_counts())
+    }
+
+
+def build_column_level_meta(datasets_folder: str, output_file: str = "column_meta_dataset.csv"):
+    meta_rows = []
+    files = glob.glob(os.path.join(datasets_folder, "*.csv"))
+
+    for file in files:
+        dataset_id = os.path.basename(file).replace(".csv", "")
+        try:
+            df = pd.read_csv(file)
+        except Exception as e:
+            print(f"Skipping {file} due to error: {e}")
+            continue
+
+        for col in df.columns:
+            col_data = df[col]
+            col_type = str(col_data.dtype)
+
+            missing_pct = col_data.isna().mean()
+            mem_size = col_data.memory_usage(deep=True)
+            distinct = col_data.nunique(dropna=True)
+
+            row = {
+                "dataset_id": dataset_id,
+                "column_name": col,
+                "dtype": col_type,
+                "missing_pct": missing_pct,
+                "distinct": distinct,
+                "mem_size": mem_size
+            }
+
+            if np.issubdtype(col_data.dropna().dtype, np.number):
+                row.update(get_numeric_meta(col_data))
+                row.update({"suggested_imputer": "median", "suggested_scaler": "standard", "suggested_encoder": None})
+
+            elif col_data.dtype == "object" or col_data.dtype.name == "category":
+                row.update(get_categorical_meta(col_data))
+                row.update({"suggested_imputer": "mode", "suggested_scaler": None, "suggested_encoder": "onehot"})
+
+            elif np.issubdtype(col_data.dropna().dtype, np.datetime64):
+                row.update(get_datetime_meta(col_data))
+                row.update({"suggested_imputer": "constant", "suggested_scaler": None, "suggested_encoder": "date_parts"})
+
+            elif col_data.dropna().isin([0, 1, True, False]).all():
+                row.update({"n_categories": 2})
+                row.update({"suggested_imputer": "mode", "suggested_scaler": None, "suggested_encoder": "binary"})
+
+            else:
+                row.update(get_text_meta(col_data))
+                row.update({"suggested_imputer": "constant", "suggested_scaler": None, "suggested_encoder": "tfidf"})
+
+            meta_rows.append(row)
+
+    meta_df = pd.DataFrame(meta_rows)
+    meta_df.to_csv(output_file, index=False)
+    print(f"Column-level meta-dataset saved to {output_file}")
+    return meta_df
+
+if __name__ == "__main__":
+    df_meta = build_column_level_meta("datasets/")  # put your datasets in /datasets
+    print(df_meta.head())

@@ -1,0 +1,27 @@
+import pandas as pd
+
+def describe_datetime(series: pd.Series):
+    s = pd.to_datetime(series.dropna(), errors="coerce")
+    if s.empty:
+        return {}
+    return {
+        "min_date": str(s.min()),
+        "max_date": str(s.max()),
+        "range_days": (s.max() - s.min()).days,
+        "missing_count": int(series.isna().sum())
+    }
+
+def describe_datetime(series):
+    stats = {
+        "feature_name": series.name,
+        "feature_type": "datetime",
+        "stats": {
+            "min": series.min(),
+            "max": series.max(),
+            "missing": series.isnull().sum(),
+            "missing_percent": series.isnull().mean() * 100,
+            "n_unique": series.nunique()
+        },
+        "checks": []
+    }
+    return stats
