@@ -1,1 +1,1 @@
-automl-eda
+automl_eda
