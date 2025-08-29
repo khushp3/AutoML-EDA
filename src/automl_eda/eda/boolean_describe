@@ -1,0 +1,22 @@
+# boolean_describe.py
+
+def describe_boolean(series):
+    stats = {
+        "feature_name": series.name,
+        "feature_type": "boolean",
+        "stats": {
+            "true_count": (series == True).sum(),
+            "false_count": (series == False).sum(),
+            "missing": series.isnull().sum(),
+            "missing_percent": series.isnull().mean() * 100,
+        },
+        "checks": []
+    }
+    
+    total = len(series)
+    if stats["stats"]["missing_percent"] > 30:
+        stats["checks"].append("High missing rate")
+    if stats["stats"]["true_count"] / total > 0.95 or stats["stats"]["false_count"] / total > 0.95:
+        stats["checks"].append("Imbalanced boolean feature")
+    
+    return stats
